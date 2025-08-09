@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de PDF</title>
+    <!-- Carga las librerías jsPDF y html2canvas desde CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="max-w-4xl w-full bg-white rounded-lg shadow-lg overflow-hidden p-8">
+        <!-- Contenido que se convertirá en PDF -->
+        <div id="contentToPDF" class="p-6 bg-gray-50 rounded-lg border border-gray-200">
+            <h1 class="text-3xl font-bold mb-4 text-gray-800">Documento de Ejemplo para PDF</h1>
+            <p class="text-gray-600 mb-6">
+                Este texto y la siguiente imagen serán capturados para crear un archivo PDF. El botón de abajo activa el proceso.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-blue-100 p-4 rounded-lg shadow-md">
+                    <h2 class="text-xl font-semibold text-blue-800 mb-2">Sección 1: Información</h2>
+                    <p class="text-blue-700">
+                        La aplicación ahora utiliza las librerías `jspdf` y `html2canvas` cargadas desde un CDN, lo que evita los errores de compilación.
+                    </p>
+                </div>
+                <div class="bg-green-100 p-4 rounded-lg shadow-md">
+                    <h2 class="text-xl font-semibold text-green-800 mb-2">Sección 2: Funcionalidad</h2>
+                    <p class="text-green-700">
+                        Al hacer clic en el botón, el contenido visible en esta caja será convertido y descargado como un archivo PDF.
+                    </p>
+                </div>
+            </div>
+            <img src="https://placehold.co/600x400/D1D5DB/1F2937?text=Imagen+de+ejemplo" alt="Imagen de ejemplo" class="mt-6 rounded-lg shadow-md w-full h-auto object-cover">
+        </div>
+
+        <!-- Botón para generar el PDF -->
+        <div class="mt-8 flex justify-center">
+            <button id="downloadButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full transition-all duration-300 transform hover:scale-105 flex items-center shadow-lg">
+                <i class="fas fa-file-pdf mr-2"></i>
+                Descargar como PDF
+            </button>
+        </div>
+
+        <!-- Contenedor para mensajes de estado -->
+        <div id="messageBox" class="mt-4 p-4 text-center bg-yellow-100 text-yellow-800 rounded-lg hidden"></div>
+    </div>
+
+    <script>
+        // Asegura que el script se ejecuta solo cuando el documento está completamente cargado
+        document.addEventListener('DOMContentLoaded', () => {
+            const downloadButton = document.getElementById('downloadButton');
+            const content = document.getElementById('contentToPDF');
+            const messageBox = document.getElementById('messageBox');
+
+            // Función para mostrar mensajes de estado
+            function showMessage(message, type = 'info') {
+                messageBox.textContent = message;
+                messageBox.className = `mt-4 p-4 text-center rounded-lg ${
+                    type === 'info' ? 'bg-blue-100 text-blue-800' :
+                    type === 'success' ? 'bg-green-100 text-green-800' :
+                    'bg-red-100 text-red-800'
+                }`;
+                messageBox.style.display = 'block';
+            }
+
+            // Oculta el botón y muestra un mensaje al iniciar la descarga
+            function startDownload() {
+                downloadButton.style.display = 'none';
+                showMessage('Generando PDF, por favor espere...', 'info');
+            }
+
+            // Muestra el botón y un mensaje de éxito al finalizar
+            function finishDownload() {
+                downloadButton.style.display = 'flex';
+                showMessage('PDF generado con éxito.', 'success');
+            }
+
+            // Manejador de eventos para el clic del botón
+            downloadButton.addEventListener('click', async () => {
+                startDownload();
+
+                try {
+                    // Genera un canvas a partir del contenido HTML
+                    const canvas = await html2canvas(content, { scale: 2 });
+                    
+                    // Crea una nueva instancia de jsPDF
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+
+                    // Convierte el canvas a una imagen y la agrega al PDF
+                    const imgData = canvas.toDataURL('image/png');
+                    const imgWidth = 210; // Ancho del formato A4 en mm
+                    const pageHeight = 295; // Alto del formato A4 en mm
+                    const imgHeight = canvas.height * imgWidth / canvas.width;
+                    let heightLeft = imgHeight;
+                    let position = 0;
+
+                    // Maneja el contenido que se extiende a múltiples páginas
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+
+                    while (heightLeft >= 0) {
+                        position = heightLeft - imgHeight;
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= pageHeight;
+                    }
+                    
+                    // Guarda el archivo PDF con un nombre predeterminado
+                    pdf.save('documento_ejemplo.pdf');
+                    finishDownload();
+                } catch (error) {
+                    // Maneja y muestra cualquier error durante el proceso
+                    console.error('Error al generar el PDF:', error);
+                    showMessage('Error al generar el PDF. Revisa la consola para más detalles.', 'error');
+                    downloadButton.style.display = 'flex';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
